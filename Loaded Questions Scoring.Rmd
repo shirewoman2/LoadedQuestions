@@ -1,0 +1,469 @@
+---
+title: "Loaded Questions Scoring"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+suppressWarnings(library(knitr))
+
+opts_chunk$set(echo = FALSE, fig.width = 5, fig.height = 3,
+               message = FALSE, warning = FALSE, dpi = 96)
+
+knit_print.data.frame = function(x, ...) {
+      res = paste(c("", "", kable(x, row.names = FALSE)), collapse = "\n")
+      asis_output(res)
+}
+
+
+```
+
+```{r}
+# Loaded Questions scoring
+
+# This script reads a google drive worksheet with people's answers to the game
+# "Loaded Questions" and scores those answers. Answers must be in a standard
+# format! Anything in the Google sheet that is in rows of higher number than the
+# number of players + 1 will be ignored, and anything in the columns of higher
+# number than the number of questions + 1 will be ignored.
+
+# !!! Important! You can't just source this document b/c it needs to interact
+# with the Google API and get authorization! Run the "Authorization" section,
+# give authorization, and then run the rest.
+
+# Authorization -------------------------------------------------------------
+
+library(googlesheets4)
+library(googledrive)
+
+MyURL <- "https://docs.google.com/spreadsheets/d/1Sc8_ulUgQjr5HbbDvvnQZzIcg0CkO7rCtNUczYfQvfM/edit#gid=2060014082"
+
+```
+```{r}
+# Housekeeping -----------------------------------------------------------
+library(gridExtra)
+library(tidyverse)
+library(ggpubr)
+library(scales)
+library(LaurasHelpers)
+
+ThemeLaura <- function (base_size = 12, base_family = "") {
+      theme_gray(base_size = base_size, base_family = base_family) %+replace%
+            theme(
+                  panel.background = element_rect(fill="white", color=NA),
+                  panel.grid.minor.y = element_line(color = NA),
+                  panel.grid.minor.x = element_line(color = NA),
+                  panel.grid.major = element_line(colour = NA),
+                  plot.background = element_rect(fill="white", colour=NA),
+                  panel.border = element_rect(color="black", fill=NA),
+                  strip.background = element_rect(color=NA, fill="white"),
+                  legend.background = element_rect(color=NA, fill=NA),
+                  legend.key = element_rect(color=NA, fill=NA)
+            )
+}
+
+scale_colour_discrete <- function(...) scale_colour_brewer(..., palette="Set1")
+scale_fill_discrete <- function(...) scale_fill_brewer(... , palette="Set1")
+
+# Call up that theme before plotting graphs.
+theme_set(ThemeLaura())
+
+colRainbow <- colorRampPalette(c("gray20", "antiquewhite4", "firebrick3",
+                                 "darkorange", "green3", "seagreen3",
+                                 "cadetblue", "dodgerblue3", "royalblue4",
+                                 "darkorchid4"))
+
+blueGreen <- colorRampPalette(c("green3", "seagreen3", "cadetblue", "dodgerblue3",
+                                "royalblue4"))
+
+
+# Reading in the files -----------------------------------------------------
+
+Questions <- sheets_read(MyURL, sheet = "Form Responses 1")
+
+AllQ <- gsub("\n", " ", names(Questions))
+names(AllQ) <- c("TimeStamp", "Player", paste0("Q", 1:(ncol(Questions)-4)),
+                 "Email", "UntitledQ")
+names(Questions) <- names(AllQ)
+
+# Removing unnecessary columns. 
+Questions <- Questions %>% select(-Email, -UntitledQ, -TimeStamp)
+
+# Keeping only the actual questions in AllQ
+AllQ <- AllQ[!(AllQ %in% c("Timestamp", "Name", "Email Address", "Untitled Question"))]
+
+Players <- Questions %>% pull(Player) %>% str_to_title()
+
+GuessSheets <- sheets_get(MyURL)$sheets %>% 
+      filter(str_detect(name, "[Gg]uess")) %>% 
+      pull(name)
+
+# Including only people who answered this round.
+GuessSheets <- GuessSheets[str_detect(GuessSheets, str_c(Players, collapse = "|"))]
+
+# Manually removing old ones for now. 
+GuessSheets <- GuessSheets[!str_detect(GuessSheets, "'s")]
+
+Guesses.xl <- list()
+for(i in GuessSheets){
+      Guesses.xl[[i]] <- sheets_read(MyURL, sheet = i,
+                                  range = cell_limits(ul = c(1, 1),
+                                                      lr = c(length(Players) + 1,
+                                                             2*length(AllQ))))
+      # Guesses[[i]] <- sheets_read(MyURL, sheet = i)
+      names(Guesses.xl[[i]]) <- 
+            paste(c("Player", "Answer"), rep(names(AllQ), each = 2), sep = "_")
+      Guesses.xl[[i]] <- Guesses.xl[[i]] %>% 
+            mutate(SheetName = i)
+}
+
+# ch <- Guesses[[i]]
+GA <- bind_rows(Guesses.xl)
+GA$ID <- 1:nrow(GA)
+GA <- GA %>% 
+      gather(key = GA, value = Value, -SheetName, -ID) %>% 
+      separate(GA, c("GA", "Question"), "_") %>% 
+      filter(complete.cases(Value))
+
+Guesses2 <- GA %>% filter(GA == "Player") %>% select(-GA) %>% rename("Player" = "Value")
+Answers2 <- GA %>% filter(GA == "Answer") %>% select(-GA) %>% rename("Answer" = "Value")
+Guesses <- full_join(Guesses2, Answers2) %>% 
+      mutate(Guesser = sub(" guesses", "", SheetName)) %>% 
+      select(-SheetName, -ID)
+
+# Scoring -----------------------------------------------------------------
+
+Questions <- Questions %>% 
+      gather(key = "Question", value = "Answer", -Player) %>% 
+      rename("CorrectAnswer" = "Answer")
+
+Scores <- Guesses %>% left_join(Questions) %>% 
+      mutate(Correct = Answer == CorrectAnswer) %>% 
+      filter(Player != Guesser)
+
+```
+```{r}
+# Setting up graphs
+
+graphMostCorrect <- function(DF){
+      
+      NumColor <- DF %>% pull(Guesser) %>% unique() %>% length()
+      
+      ggplot(DF, aes(x = reorder(Guesser, desc(NumCorrect)), y = NumCorrect,
+                     fill = Guesser)) + 
+            geom_bar(stat = "identity") +
+            scale_fill_manual(values = colRainbow(NumColor)) +
+            xlab("Guesser") + ylab("Number of correct guesses") +
+            theme(legend.position = "none")
+      
+}
+
+```
+
+# Q1: `r AllQ["Q1"]`
+
+Actual answers:  
+
+```{r}
+Q1 <- Scores %>% filter(Question == "Q1", Correct == TRUE)
+
+Questions %>% filter(Question == "Q1") %>% select(Player, CorrectAnswer) %>% 
+      rename("Actual answer" = "CorrectAnswer") %>% 
+      kable()
+
+```
+
+Who had the most correct answers? 
+
+```{r}
+MostCorrect_Q1 <- Q1 %>% group_by(Guesser) %>% 
+      summarize(NumCorrect = n()) %>% arrange(desc(NumCorrect))
+
+graphMostCorrect(MostCorrect_Q1)
+
+```
+
+For each player, who guessed their answer correctly?
+
+```{r}
+
+Q1 %>% group_by(Player) %>% 
+      summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
+      rename("Who guessed correctly?" = "Who") %>% 
+      kable()
+
+```
+
+# Q2: `r AllQ["Q2"]`
+
+```{r}
+Q2 <- Scores %>% filter(Question == "Q2", Correct == TRUE)
+
+Questions %>% filter(Question == "Q2") %>% select(Player, CorrectAnswer) %>% 
+      rename("Actual answer" = "CorrectAnswer") %>% 
+      kable()
+
+```
+
+Who had the most correct answers? 
+
+```{r}
+MostCorrect_Q2 <- Q2 %>% group_by(Guesser) %>% 
+      summarize(NumCorrect = n()) %>% arrange(desc(NumCorrect))
+
+graphMostCorrect(MostCorrect_Q2)
+
+```
+
+For each player, who guessed their answer correctly?
+
+```{r}
+
+Q2 %>% group_by(Player) %>% 
+      summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
+      rename("Who guessed correctly?" = "Who") %>% 
+      kable()
+
+```
+
+# Q3: `r AllQ["Q3"]`
+
+```{r}
+Q3 <- Scores %>% filter(Question == "Q3", Correct == TRUE)
+
+Questions %>% filter(Question == "Q3") %>% select(Player, CorrectAnswer) %>% 
+      rename("Actual answer" = "CorrectAnswer") %>% 
+      kable()
+
+```
+
+Who had the most correct answers? 
+
+```{r}
+MostCorrect_Q3 <- Q3 %>% group_by(Guesser) %>% 
+      summarize(NumCorrect = n()) %>% arrange(desc(NumCorrect))
+
+graphMostCorrect(MostCorrect_Q3)
+
+```
+
+For each player, who guessed their answer correctly?
+
+```{r}
+
+Q3 %>% group_by(Player) %>% 
+      summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
+      rename("Who guessed correctly?" = "Who") %>% 
+      kable()
+
+```
+
+# Q4: `r AllQ["Q4"]`
+
+```{r}
+Q4 <- Scores %>% filter(Question == "Q4", Correct == TRUE)
+
+Questions %>% filter(Question == "Q4") %>% select(Player, CorrectAnswer) %>% 
+      rename("Actual answer" = "CorrectAnswer") %>% 
+      kable()
+
+```
+
+Who had the most correct answers? 
+
+```{r}
+MostCorrect_Q4 <- Q4 %>% group_by(Guesser) %>% 
+      summarize(NumCorrect = n()) %>% arrange(desc(NumCorrect))
+
+graphMostCorrect(MostCorrect_Q4)
+
+```
+
+For each player, who guessed their answer correctly?
+
+```{r}
+
+Q4 %>% group_by(Player) %>% 
+      summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
+      rename("Who guessed correctly?" = "Who") %>% 
+      kable()
+
+```
+
+# Q5: `r AllQ["Q5"]`
+
+```{r}
+Q5 <- Scores %>% filter(Question == "Q5", Correct == TRUE)
+
+Questions %>% filter(Question == "Q5") %>% select(Player, CorrectAnswer) %>% 
+      rename("Actual answer" = "CorrectAnswer") %>% 
+      kable()
+
+
+```
+
+Who had the most correct answers? 
+
+```{r}
+MostCorrect_Q5 <- Q5 %>% group_by(Guesser) %>% 
+      summarize(NumCorrect = n()) %>% arrange(desc(NumCorrect))
+
+graphMostCorrect(MostCorrect_Q5)
+
+```
+
+For each player, who guessed their answer correctly?
+
+```{r}
+
+Q5 %>% group_by(Player) %>% 
+      summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
+      rename("Who guessed correctly?" = "Who") %>% 
+      kable()
+
+```
+
+# Q6: `r AllQ["Q6"]`
+
+```{r}
+Q6 <- Scores %>% filter(Question == "Q6", Correct == TRUE)
+
+Questions %>% filter(Question == "Q6") %>% select(Player, CorrectAnswer) %>% 
+      rename("Actual answer" = "CorrectAnswer") %>% 
+      kable()
+
+
+```
+
+Who had the most correct answers? 
+
+```{r}
+MostCorrect_Q6 <- Q6 %>% group_by(Guesser) %>% 
+      summarize(NumCorrect = n()) %>% arrange(desc(NumCorrect))
+
+graphMostCorrect(MostCorrect_Q6)
+
+```
+
+For each player, who guessed their answer correctly?
+
+```{r}
+
+Q6 %>% group_by(Player) %>% 
+      summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
+      rename("Who guessed correctly?" = "Who") %>% 
+      kable()
+
+```
+
+# Q7: `r AllQ["Q7"]`
+
+```{r}
+Q7 <- Scores %>% filter(Question == "Q7", Correct == TRUE)
+
+Questions %>% filter(Question == "Q7") %>% select(Player, CorrectAnswer) %>% 
+      rename("Actual answer" = "CorrectAnswer") %>% 
+      kable()
+
+
+```
+
+Who had the most correct answers? 
+
+```{r}
+MostCorrect_Q7 <- Q7 %>% group_by(Guesser) %>% 
+      summarize(NumCorrect = n()) %>% arrange(desc(NumCorrect))
+
+graphMostCorrect(MostCorrect_Q7)
+
+```
+
+For each player, who guessed their answer correctly?
+
+```{r}
+
+Q7 %>% group_by(Player) %>% 
+      summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
+      rename("Who guessed correctly?" = "Who") %>% 
+      kable()
+
+```
+
+# Q8: `r AllQ["Q8"]`
+
+```{r}
+Q8 <- Scores %>% filter(Question == "Q8", Correct == TRUE)
+
+Questions %>% filter(Question == "Q8") %>% select(Player, CorrectAnswer) %>% 
+      rename("Actual answer" = "CorrectAnswer") %>% 
+      kable()
+
+
+```
+
+Who had the most correct answers? 
+
+```{r}
+MostCorrect_Q8 <- Q8 %>% group_by(Guesser) %>% 
+      summarize(NumCorrect = n()) %>% arrange(desc(NumCorrect))
+
+graphMostCorrect(MostCorrect_Q8)
+
+```
+
+For each player, who guessed their answer correctly?
+
+```{r}
+
+Q8 %>% group_by(Player) %>% 
+      summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
+      rename("Who guessed correctly?" = "Who") %>% 
+      kable()
+
+```
+
+# Overall scores  
+
+Number of correct answers:  
+
+```{r}
+
+Final <- Scores %>% filter(Correct == TRUE) %>% 
+      group_by(Guesser) %>% 
+      summarize(NumCorrect = n()) %>% 
+      ungroup() %>% 
+      mutate(Guesser2 = paste(Guesser, NumCorrect, sep = "\n"))
+
+ggplot(Final, aes(x = reorder(Guesser2, desc(NumCorrect)), y = NumCorrect,
+                           fill = Guesser)) + 
+      geom_bar(stat = "identity") +
+      xlab("Guesser") + ylab("Number of correct guesses") +
+      scale_fill_manual(values = colRainbow(length(Final$Guesser))) +
+      theme(legend.position = "none")
+
+```
+
+Who knows you best? Who guessed your answers correctly the most? 
+
+```{r}
+
+Scores %>%
+      filter(Correct == TRUE) %>% 
+      group_by(Player, Guesser) %>% 
+      summarize(NumCorrect = n()) %>% 
+      group_by(NumCorrect, Player) %>% 
+      summarize(Guesser = str_c(Guesser, collapse = " & ")) %>% 
+      group_by(Player) %>% 
+      summarize(KnownBestBy = Guesser[which.max(NumCorrect)],
+                NumMatches = max(NumCorrect)) %>% 
+      rename("Known best by" = "KnownBestBy", 
+             "Number of correct guesses" = "NumMatches") %>% 
+      kable()
+
+
+```
+
+
+
+
