@@ -28,16 +28,11 @@ knit_print.data.frame = function(x, ...) {
 # number of players + 1 will be ignored, and anything in the columns of higher
 # number than the number of questions + 1 will be ignored.
 
-# !!! Important! You can't just source this document b/c it needs to interact
-# with the Google API and get authorization! Run the "Authorization" section,
-# give authorization, and then run the rest.
+# Repo for this: 
+# https://github.com/shirewoman2/LoadedQuestions/blob/master/Loaded-Questions-Scoring.html
 
-# Authorization -------------------------------------------------------------
-
-library(googlesheets4)
-library(googledrive)
-
-MyURL <- "https://docs.google.com/spreadsheets/d/1Sc8_ulUgQjr5HbbDvvnQZzIcg0CkO7rCtNUczYfQvfM/edit#gid=2060014082"
+# To see the final html document, go to: 
+# https://rawcdn.githack.com/shirewoman2/LoadedQuestions/master/Loaded-Questions-Scoring.html
 
 ```
 ```{r}
@@ -47,6 +42,8 @@ library(tidyverse)
 library(ggpubr)
 library(scales)
 library(LaurasHelpers)
+library(googlesheets4)
+library(googledrive)
 
 ThemeLaura <- function (base_size = 12, base_family = "") {
       theme_gray(base_size = base_size, base_family = base_family) %+replace%
@@ -79,6 +76,8 @@ blueGreen <- colorRampPalette(c("green3", "seagreen3", "cadetblue", "dodgerblue3
 
 
 # Reading in the files -----------------------------------------------------
+
+MyURL <- "https://docs.google.com/spreadsheets/d/1Sc8_ulUgQjr5HbbDvvnQZzIcg0CkO7rCtNUczYfQvfM/edit#gid=2060014082"
 
 Questions <- sheets_read(MyURL, sheet = "Form Responses 1")
 
