@@ -1,5 +1,6 @@
 ---
 title: "Loaded Questions Scoring"
+date: "April 5, 2020"
 output: html_document
 ---
 
@@ -107,14 +108,39 @@ GuessSheets <- GuessSheets[!str_detect(GuessSheets, "'s")]
 Guesses.xl <- list()
 for(i in GuessSheets){
       Guesses.xl[[i]] <- sheets_read(MyURL, sheet = i,
-                                  range = cell_limits(ul = c(1, 1),
-                                                      lr = c(length(Players) + 1,
-                                                             2*length(AllQ))))
+                                     range = cell_limits(ul = c(1, 1),
+                                                         lr = c(length(Players) + 1,
+                                                                2*length(AllQ))))
       # Guesses[[i]] <- sheets_read(MyURL, sheet = i)
       names(Guesses.xl[[i]]) <- 
             paste(c("Player", "Answer"), rep(names(AllQ), each = 2), sep = "_")
       Guesses.xl[[i]] <- Guesses.xl[[i]] %>% 
             mutate(SheetName = i)
+      
+      # I know that Eri and Elliott did not complete their answers. Filling
+      # those in randomly.
+      if(i %in% c("Elliott guesses", "Eri guesses", "Freyja guesses")){
+            for(j in 1:8){
+                  QJ <- Guesses.xl[[i]] %>% select(matches(as.character(j)))
+                  OrigNames <- names(QJ)
+                  names(QJ) <- c("Player", "Answer")
+                  QJ_ToFill <- QJ %>% filter(is.na(Player))
+                  if(nrow(QJ_ToFill) > 0){
+                        GSoFar <- QJ %>% filter(complete.cases(Player)) %>% 
+                              pull(Player)
+                        QJ_ToFill <- QJ_ToFill %>% 
+                              mutate(Player = sample(setdiff(Players, GSoFar),
+                                                     replace = TRUE))
+                        QJ <- QJ %>% filter(complete.cases(Player)) %>% 
+                              bind_rows(QJ_ToFill)
+                        Guesses.xl[[i]][, OrigNames] <- QJ
+                        rm(QJ, OrigNames, QJ_ToFill, GSoFar)
+                  } else {
+                        rm(QJ, OrigNames, QJ_ToFill)
+                        next
+                  }
+            }
+      }
 }
 
 # ch <- Guesses[[i]]
@@ -169,6 +195,7 @@ Q1 <- Scores %>% filter(Question == "Q1", Correct == TRUE)
 
 Questions %>% filter(Question == "Q1") %>% select(Player, CorrectAnswer) %>% 
       rename("Actual answer" = "CorrectAnswer") %>% 
+      arrange(Player) %>% 
       kable()
 
 ```
@@ -190,6 +217,7 @@ For each player, who guessed their answer correctly?
 Q1 %>% group_by(Player) %>% 
       summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
       rename("Who guessed correctly?" = "Who") %>% 
+      arrange(Player) %>% 
       kable()
 
 ```
@@ -201,6 +229,7 @@ Q2 <- Scores %>% filter(Question == "Q2", Correct == TRUE)
 
 Questions %>% filter(Question == "Q2") %>% select(Player, CorrectAnswer) %>% 
       rename("Actual answer" = "CorrectAnswer") %>% 
+      arrange(Player) %>% 
       kable()
 
 ```
@@ -222,6 +251,7 @@ For each player, who guessed their answer correctly?
 Q2 %>% group_by(Player) %>% 
       summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
       rename("Who guessed correctly?" = "Who") %>% 
+      arrange(Player) %>% 
       kable()
 
 ```
@@ -233,6 +263,7 @@ Q3 <- Scores %>% filter(Question == "Q3", Correct == TRUE)
 
 Questions %>% filter(Question == "Q3") %>% select(Player, CorrectAnswer) %>% 
       rename("Actual answer" = "CorrectAnswer") %>% 
+      arrange(Player) %>% 
       kable()
 
 ```
@@ -254,6 +285,7 @@ For each player, who guessed their answer correctly?
 Q3 %>% group_by(Player) %>% 
       summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
       rename("Who guessed correctly?" = "Who") %>% 
+      arrange(Player) %>% 
       kable()
 
 ```
@@ -265,6 +297,7 @@ Q4 <- Scores %>% filter(Question == "Q4", Correct == TRUE)
 
 Questions %>% filter(Question == "Q4") %>% select(Player, CorrectAnswer) %>% 
       rename("Actual answer" = "CorrectAnswer") %>% 
+      arrange(Player) %>% 
       kable()
 
 ```
@@ -286,6 +319,7 @@ For each player, who guessed their answer correctly?
 Q4 %>% group_by(Player) %>% 
       summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
       rename("Who guessed correctly?" = "Who") %>% 
+      arrange(Player) %>% 
       kable()
 
 ```
@@ -297,6 +331,7 @@ Q5 <- Scores %>% filter(Question == "Q5", Correct == TRUE)
 
 Questions %>% filter(Question == "Q5") %>% select(Player, CorrectAnswer) %>% 
       rename("Actual answer" = "CorrectAnswer") %>% 
+      arrange(Player) %>% 
       kable()
 
 
@@ -319,6 +354,7 @@ For each player, who guessed their answer correctly?
 Q5 %>% group_by(Player) %>% 
       summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
       rename("Who guessed correctly?" = "Who") %>% 
+      arrange(Player) %>% 
       kable()
 
 ```
@@ -330,6 +366,7 @@ Q6 <- Scores %>% filter(Question == "Q6", Correct == TRUE)
 
 Questions %>% filter(Question == "Q6") %>% select(Player, CorrectAnswer) %>% 
       rename("Actual answer" = "CorrectAnswer") %>% 
+      arrange(Player) %>% 
       kable()
 
 
@@ -352,6 +389,7 @@ For each player, who guessed their answer correctly?
 Q6 %>% group_by(Player) %>% 
       summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
       rename("Who guessed correctly?" = "Who") %>% 
+      arrange(Player) %>% 
       kable()
 
 ```
@@ -363,6 +401,7 @@ Q7 <- Scores %>% filter(Question == "Q7", Correct == TRUE)
 
 Questions %>% filter(Question == "Q7") %>% select(Player, CorrectAnswer) %>% 
       rename("Actual answer" = "CorrectAnswer") %>% 
+      arrange(Player) %>% 
       kable()
 
 
@@ -385,6 +424,7 @@ For each player, who guessed their answer correctly?
 Q7 %>% group_by(Player) %>% 
       summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
       rename("Who guessed correctly?" = "Who") %>% 
+      arrange(Player) %>% 
       kable()
 
 ```
@@ -396,6 +436,7 @@ Q8 <- Scores %>% filter(Question == "Q8", Correct == TRUE)
 
 Questions %>% filter(Question == "Q8") %>% select(Player, CorrectAnswer) %>% 
       rename("Actual answer" = "CorrectAnswer") %>% 
+      arrange(Player) %>% 
       kable()
 
 
@@ -418,6 +459,7 @@ For each player, who guessed their answer correctly?
 Q8 %>% group_by(Player) %>% 
       summarize(Who = str_c(Guesser, collapse = ", ")) %>% 
       rename("Who guessed correctly?" = "Who") %>% 
+      arrange(Player) %>% 
       kable()
 
 ```
@@ -458,6 +500,7 @@ Scores %>%
                 NumMatches = max(NumCorrect)) %>% 
       rename("Known best by" = "KnownBestBy", 
              "Number of correct guesses" = "NumMatches") %>% 
+      arrange(Player) %>% 
       kable()
 
 
