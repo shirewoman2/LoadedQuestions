@@ -164,7 +164,9 @@ Questions <- Questions %>%
       rename("CorrectAnswer" = "Answer")
 
 Scores <- Guesses %>% left_join(Questions) %>% 
-      mutate(Correct = Answer == CorrectAnswer) %>% 
+      mutate(Answer = tolower(Answer),
+             CorrectAnswer = tolower(CorrectAnswer),
+             Correct = Answer == CorrectAnswer) %>% 
       filter(Player != Guesser)
 
 ```
