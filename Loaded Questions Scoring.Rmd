@@ -1,6 +1,6 @@
 ---
 title: "Loaded Questions Scoring"
-date: "April 5, 2020"
+date: "April 12, 2020"
 output: html_document
 ---
 
@@ -9,7 +9,7 @@ knitr::opts_chunk$set(echo = FALSE)
 
 suppressWarnings(library(knitr))
 
-opts_chunk$set(echo = FALSE, fig.width = 5, fig.height = 3,
+opts_chunk$set(echo = FALSE, fig.width = 6, fig.height = 3,
                message = FALSE, warning = FALSE, dpi = 96)
 
 knit_print.data.frame = function(x, ...) {
@@ -68,14 +68,16 @@ scale_fill_discrete <- function(...) scale_fill_brewer(... , palette="Set1")
 theme_set(ThemeLaura())
 
 colRainbow <- colorRampPalette(c("gray20", "antiquewhite4", "firebrick3",
-                                 "darkorange", "green3", "seagreen3",
+                                 "yellow", "green3", "seagreen3",
                                  "cadetblue", "dodgerblue3", "royalblue4",
                                  "darkorchid4"))
 
 blueGreen <- colorRampPalette(c("green3", "seagreen3", "cadetblue", "dodgerblue3",
                                 "royalblue4"))
+```
 
 
+```{r}
 # Reading in the files -----------------------------------------------------
 
 MyURL <- "https://docs.google.com/spreadsheets/d/1Sc8_ulUgQjr5HbbDvvnQZzIcg0CkO7rCtNUczYfQvfM/edit#gid=2060014082"
@@ -143,7 +145,20 @@ for(i in GuessSheets){
       }
 }
 
+# # Mini script for checking for duplicates:
 # ch <- Guesses[[i]]
+# for(i in paste0("Player_Q", 1:8)){
+#       String <- ch[, i] %>% pull()
+#       if(any(duplicated(String))){
+#             print(paste0(i, " - ",
+#                          "Extra: ", String[which(duplicated(String))],
+#                          "     ",
+#                          "Missing: ", setdiff(Players, String)))
+#       } 
+#       rm(String)
+# }
+
+
 GA <- bind_rows(Guesses.xl)
 GA$ID <- 1:nrow(GA)
 GA <- GA %>% 
@@ -163,11 +178,29 @@ Questions <- Questions %>%
       gather(key = "Question", value = "Answer", -Player) %>% 
       rename("CorrectAnswer" = "Answer")
 
-Scores <- Guesses %>% left_join(Questions) %>% 
+
+Scores <- Guesses %>% 
+      # Fixing people's typos and misspellings. 
+      left_join(Questions %>% 
+                      mutate(CorrectAnswer = ifelse(CorrectAnswer == "Griffyndoor" |
+                                                          CorrectAnswer == "Gyrffindor", 
+                                                    "Gryffindor", CorrectAnswer),
+                             CorrectAnswer = ifelse(CorrectAnswer == "huffle puff", 
+                                             "Hufflepuff", CorrectAnswer),
+                             CorrectAnswer = ifelse(CorrectAnswer == "Joker", 
+                                             "The Joker", CorrectAnswer),
+                             CorrectAnswer = ifelse(str_detect(CorrectAnswer, 
+                                                               "Se.orita"), 
+                                             "Senorita", CorrectAnswer)) ) %>% 
       mutate(Answer = tolower(Answer),
              CorrectAnswer = tolower(CorrectAnswer),
              Correct = Answer == CorrectAnswer) %>% 
       filter(Player != Guesser)
+
+set.seed(206)
+MCs <- unique(Scores$Guesser)
+MCs <- sample(MCs, 8, replace = F)
+
 
 ```
 ```{r}
@@ -180,7 +213,7 @@ graphMostCorrect <- function(DF){
       ggplot(DF, aes(x = reorder(Guesser, desc(NumCorrect)), y = NumCorrect,
                      fill = Guesser)) + 
             geom_bar(stat = "identity") +
-            scale_fill_manual(values = colRainbow(NumColor)) +
+            scale_fill_manual(values = muted(colRainbow(NumColor),l = 80)) +
             xlab("Guesser") + ylab("Number of correct guesses") +
             theme(legend.position = "none")
       
@@ -190,19 +223,37 @@ graphMostCorrect <- function(DF){
 
 # Q1: `r AllQ["Q1"]`
 
+MC for this question: `r MCs[1]`
+
 Actual answers:  
 
 ```{r}
+
+# This was the Hogwarts House question. Adusting the layout of the answers for
+# this particular round. 
 Q1 <- Scores %>% filter(Question == "Q1", Correct == TRUE)
 
 Questions %>% filter(Question == "Q1") %>% select(Player, CorrectAnswer) %>% 
-      rename("Actual answer" = "CorrectAnswer") %>% 
-      arrange(Player) %>% 
+      mutate(CorrectAnswer = ifelse(CorrectAnswer == "Griffyndoor" |
+                                          CorrectAnswer == "Gyrffindor", 
+                                    "Gryffindor", CorrectAnswer),
+             CorrectAnswer = ifelse(CorrectAnswer == "huffle puff", 
+                                    "Hufflepuff", CorrectAnswer)) %>% 
+      bind_rows(tibble(CorrectAnswer = "Slytherin",
+                       Player = c("Michael", "Carol", "Jim", "Fran", "Eri"))) %>% 
+      group_by(CorrectAnswer) %>% 
+      summarize("Wizards and witches" = str_c(sort(Player), collapse = ", ")) %>% 
+      # arrange(CorrectAnswer, Player) %>% 
+      # rename("Actual answer" = "CorrectAnswer") %>%
+      rename("Hogwarts House" = "CorrectAnswer") %>% 
       kable()
+
+
+
 
 ```
 
-Who had the most correct answers? 
+Who had the most correct answers? (I ignored spelling mistakes when scoring.)
 
 ```{r}
 MostCorrect_Q1 <- Q1 %>% group_by(Guesser) %>% 
@@ -226,6 +277,8 @@ Q1 %>% group_by(Player) %>%
 
 # Q2: `r AllQ["Q2"]`
 
+MC for this question: `r MCs[2]`
+
 ```{r}
 Q2 <- Scores %>% filter(Question == "Q2", Correct == TRUE)
 
@@ -236,7 +289,7 @@ Questions %>% filter(Question == "Q2") %>% select(Player, CorrectAnswer) %>%
 
 ```
 
-Who had the most correct answers? 
+Who had the most correct answers? ("The Joker" and "Joker" were counted as being the same answer.)
 
 ```{r}
 MostCorrect_Q2 <- Q2 %>% group_by(Guesser) %>% 
@@ -259,6 +312,8 @@ Q2 %>% group_by(Player) %>%
 ```
 
 # Q3: `r AllQ["Q3"]`
+
+MC for this question: `r MCs[3]`
 
 ```{r}
 Q3 <- Scores %>% filter(Question == "Q3", Correct == TRUE)
@@ -294,6 +349,8 @@ Q3 %>% group_by(Player) %>%
 
 # Q4: `r AllQ["Q4"]`
 
+MC for this question: `r MCs[4]`
+
 ```{r}
 Q4 <- Scores %>% filter(Question == "Q4", Correct == TRUE)
 
@@ -327,6 +384,8 @@ Q4 %>% group_by(Player) %>%
 ```
 
 # Q5: `r AllQ["Q5"]`
+
+MC for this question: `r MCs[5]`
 
 ```{r}
 Q5 <- Scores %>% filter(Question == "Q5", Correct == TRUE)
@@ -363,6 +422,8 @@ Q5 %>% group_by(Player) %>%
 
 # Q6: `r AllQ["Q6"]`
 
+MC for this question: `r MCs[6]`
+
 ```{r}
 Q6 <- Scores %>% filter(Question == "Q6", Correct == TRUE)
 
@@ -397,6 +458,8 @@ Q6 %>% group_by(Player) %>%
 ```
 
 # Q7: `r AllQ["Q7"]`
+
+MC for this question: `r MCs[7]`
 
 ```{r}
 Q7 <- Scores %>% filter(Question == "Q7", Correct == TRUE)
@@ -433,6 +496,8 @@ Q7 %>% group_by(Player) %>%
 
 # Q8: `r AllQ["Q8"]`
 
+MC for this question: `r MCs[8]`
+
 ```{r}
 Q8 <- Scores %>% filter(Question == "Q8", Correct == TRUE)
 
@@ -466,7 +531,9 @@ Q8 %>% group_by(Player) %>%
 
 ```
 
-# Overall scores  
+# Overall scores 
+
+Overall MC: The Senator
 
 Number of correct answers:  
 
@@ -482,7 +549,7 @@ ggplot(Final, aes(x = reorder(Guesser2, desc(NumCorrect)), y = NumCorrect,
                            fill = Guesser)) + 
       geom_bar(stat = "identity") +
       xlab("Guesser") + ylab("Number of correct guesses") +
-      scale_fill_manual(values = colRainbow(length(Final$Guesser))) +
+      scale_fill_manual(values = muted(colRainbow(length(Final$Guesser)), l = 80)) +
       theme(legend.position = "none")
 
 ```
