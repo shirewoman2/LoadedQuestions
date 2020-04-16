@@ -202,7 +202,7 @@ graphMostCorrect <- function(DF){
       ggplot(DF, aes(x = reorder(Guesser, desc(NumCorrect)), y = NumCorrect,
                      fill = Guesser)) + 
             geom_bar(stat = "identity") +
-            scale_fill_manual(values = muted(colRainbow(NumColor),l = 80)) +
+            scale_fill_manual(values = colRainbow(NumColor)) +
             xlab("Guesser") + ylab("Number of correct guesses") +
             theme(legend.position = "none")
       
@@ -216,26 +216,12 @@ Actual answers:
 
 ```{r}
 
-# This was the Hogwarts House question. Adusting the layout of the answers for
-# this particular round. 
 Q1 <- Scores %>% filter(Question == "Q1", Correct == TRUE)
 
 Questions %>% filter(Question == "Q1") %>% select(Player, CorrectAnswer) %>% 
-      mutate(CorrectAnswer = ifelse(CorrectAnswer == "Griffyndoor" |
-                                          CorrectAnswer == "Gyrffindor", 
-                                    "Gryffindor", CorrectAnswer),
-             CorrectAnswer = ifelse(CorrectAnswer == "huffle puff", 
-                                    "Hufflepuff", CorrectAnswer)) %>% 
-      bind_rows(tibble(CorrectAnswer = "Slytherin",
-                       Player = c("Michael", "Carol", "Jim", "Fran", "Eri"))) %>% 
-      group_by(CorrectAnswer) %>% 
-      summarize("Wizards and witches" = str_c(sort(Player), collapse = ", ")) %>% 
-      # arrange(CorrectAnswer, Player) %>% 
-      # rename("Actual answer" = "CorrectAnswer") %>%
-      rename("Hogwarts House" = "CorrectAnswer") %>% 
+      rename("Actual answer" = "CorrectAnswer") %>% 
+      arrange(Player) %>% 
       kable()
-
-
 
 
 ```
@@ -274,7 +260,7 @@ Questions %>% filter(Question == "Q2") %>% select(Player, CorrectAnswer) %>%
 
 ```
 
-Who had the most correct answers? ("The Joker" and "Joker" were counted as being the same answer.)
+Who had the most correct answers?  
 
 ```{r}
 MostCorrect_Q2 <- Q2 %>% group_by(Guesser) %>% 
@@ -522,7 +508,7 @@ ggplot(Final, aes(x = reorder(Guesser2, desc(NumCorrect)), y = NumCorrect,
                            fill = Guesser)) + 
       geom_bar(stat = "identity") +
       xlab("Guesser") + ylab("Number of correct guesses") +
-      scale_fill_manual(values = muted(colRainbow(length(Final$Guesser)), l = 80)) +
+      scale_fill_manual(values = colRainbow(length(Final$Guesser))) +
       theme(legend.position = "none")
 
 ```
