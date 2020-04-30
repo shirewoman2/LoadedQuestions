@@ -30,10 +30,11 @@ knit_print.data.frame = function(x, ...) {
 # number than the number of questions + 1 will be ignored.
 
 # Repo for this: 
-# https://github.com/shirewoman2/LoadedQuestions/blob/master/Loaded-Questions-Scoring.html
+# https://github.com/shirewoman2/LoadedQuestions/blob/master/Loaded-Questions-with-friends---scoring.html
 
 # To see the final html document, go to: 
-# https://rawcdn.githack.com/shirewoman2/LoadedQuestions/master/Loaded-Questions-Scoring.html
+
+# https://rawcdn.githack.com/shirewoman2/LoadedQuestions/master/Loaded-Questions-with-friends---scoring.html
 
 ```
 ```{r}
@@ -491,8 +492,6 @@ Q8 %>% group_by(Player) %>%
 ```
 
 # Overall scores 
-
-Overall MC: The Senator
 
 Number of correct answers:  
 

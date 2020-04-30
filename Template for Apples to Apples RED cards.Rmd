@@ -1,0 +1,27 @@
+---
+title: "Testing possibilities for playing Apples to Apples"
+output: html_document
+---
+
+```{r set-options, echo=FALSE}
+suppressWarnings(library(knitr))
+
+opts_chunk$set(echo = FALSE, fig.width = 6, fig.height = 4, message = FALSE, warning = FALSE,
+               dpi = 300)
+
+knit_print.data.frame = function(x, ...) {
+      res = paste(c("", "", kable(x, row.names = FALSE)), collapse = "\n")
+      asis_output(res)
+}
+
+
+```
+
+Your red cards are:  
+
+```{r}
+
+PlayerCards[[i]][["Red"]] %>% kable()
+
+```
+
