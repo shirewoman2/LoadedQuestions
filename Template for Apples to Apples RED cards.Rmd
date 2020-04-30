@@ -17,6 +17,8 @@ knit_print.data.frame = function(x, ...) {
 
 ```
 
+# `r i`
+
 Your red cards are:  
 
 ```{r}
