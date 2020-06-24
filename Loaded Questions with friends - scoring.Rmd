@@ -1,6 +1,6 @@
 ---
 title: "Loaded Questions Scoring"
-date: "April 15, 2020"
+date: "June 23, 2020"
 output: html_document
 ---
 
@@ -87,7 +87,7 @@ set.seed(206)
 
 MyURL <- "https://docs.google.com/spreadsheets/d/1S684jl7Snzbw6HYAjjtHu1S8aBcXB0rBPenWryf15ok"
 
-Questions <- sheets_read(MyURL, sheet = "Form Responses 2")
+Questions <- range_read(MyURL, sheet = "Form Responses 3")
 
 AllQ <- gsub("\n", " ", names(Questions))
 names(AllQ) <- c("TimeStamp", "Player", paste0("Q", 1:8))
@@ -110,11 +110,11 @@ GuessSheets <- GuessSheets[str_detect(GuessSheets, str_c(Players, collapse = "|"
 
 Guesses.xl <- list()
 for(i in GuessSheets){
-      Guesses.xl[[i]] <- sheets_read(MyURL, sheet = i,
+      Guesses.xl[[i]] <- range_read(MyURL, sheet = i,
                                      range = cell_limits(ul = c(1, 1),
                                                          lr = c(length(Players) + 1,
                                                                 2*length(AllQ))))
-      # Guesses[[i]] <- sheets_read(MyURL, sheet = i)
+      # Guesses[[i]] <- range_read(MyURL, sheet = i)
       names(Guesses.xl[[i]]) <- 
             paste(c("Player", "Answer"), rep(names(AllQ), each = 2), sep = "_")
       Guesses.xl[[i]] <- Guesses.xl[[i]] %>% 
@@ -183,8 +183,8 @@ Questions <- Questions %>%
 Scores <- Guesses %>% 
       # Fixing people's typos and misspellings. 
       left_join(Questions %>% 
-                      mutate(CorrectAnswer = ifelse(CorrectAnswer == "laborador retriever", 
-                                                    "labrador retriever", CorrectAnswer)) ) %>% 
+                      mutate(CorrectAnswer = ifelse(CorrectAnswer == "Elon Musk, clearly", 
+                                                    "Elon Musk", CorrectAnswer)) ) %>% 
       mutate(Answer = tolower(Answer),
              CorrectAnswer = tolower(CorrectAnswer),
              Correct = Answer == CorrectAnswer) %>% 
@@ -227,7 +227,7 @@ Questions %>% filter(Question == "Q1") %>% select(Player, CorrectAnswer) %>%
 
 ```
 
-Who had the most correct answers? (I ignored spelling mistakes when scoring.)
+Who had the most correct answers? (I ignored small syntax differences when scoring.)
 
 ```{r}
 MostCorrect_Q1 <- Q1 %>% group_by(Guesser) %>% 
@@ -286,12 +286,21 @@ Q2 %>% group_by(Player) %>%
 # Q3: `r AllQ["Q3"]`
 
 ```{r}
+
+# NOTE! This question had only four possible answers!
 Q3 <- Scores %>% filter(Question == "Q3", Correct == TRUE)
 
+# Questions %>% filter(Question == "Q3") %>% select(Player, CorrectAnswer) %>% 
+#       rename("Actual answer" = "CorrectAnswer") %>% 
+#       arrange(Player) %>% 
+#       kable()
+
 Questions %>% filter(Question == "Q3") %>% select(Player, CorrectAnswer) %>% 
-      rename("Actual answer" = "CorrectAnswer") %>% 
-      arrange(Player) %>% 
+      group_by(CorrectAnswer) %>% 
+      summarize(Players = str_c(sort(Player), collapse = ", ")) %>% 
+      ungroup() %>% rename("Fantasy creature" = CorrectAnswer) %>% 
       kable()
+
 
 ```
 
