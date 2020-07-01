@@ -3,7 +3,7 @@ title: "Loaded Questions Scoring"
 output:
   word_document: default
   html_document: default
-date: "June 23, 2020"
+date: "July 1, 2020"
 ---
 
 ```{r setup, include=FALSE}
@@ -32,11 +32,11 @@ knit_print.data.frame = function(x, ...) {
 # number than the number of questions + 1 will be ignored.
 
 # Repo for this: 
-# https://github.com/shirewoman2/LoadedQuestions/blob/master/Loaded-Questions-with-friends---scoring.html
+# https://github.com/shirewoman2/LoadedQuestions/blob/master/Loaded-Questions-with-the-Ho-Lab---scoring.html
 
 # To see the final html document, go to: 
 
-# https://rawcdn.githack.com/shirewoman2/LoadedQuestions/master/Loaded-Questions-with-friends---scoring.html
+# https://rawcdn.githack.com/shirewoman2/LoadedQuestions/master/Loaded-Questions-with-the-Ho-Lab---scoring.html
 
 ```
 ```{r}
@@ -87,9 +87,9 @@ set.seed(206)
 ```{r}
 # Reading in the files -----------------------------------------------------
 
-MyURL <- "https://docs.google.com/spreadsheets/d/1S684jl7Snzbw6HYAjjtHu1S8aBcXB0rBPenWryf15ok"
+MyURL <- "https://docs.google.com/spreadsheets/d/1Wr9uZGywd5PegpErJ_XSt4FIpBu8oMcAlNnT870WbzM"
 
-Questions <- range_read(MyURL, sheet = "Form Responses 3")
+Questions <- range_read(MyURL, sheet = "Form Responses 1")
 
 AllQ <- gsub("\n", " ", names(Questions))
 names(AllQ) <- c("TimeStamp", "Player", paste0("Q", 1:8))
@@ -106,9 +106,6 @@ Players <- Questions %>% pull(Player) %>% str_to_title()
 GuessSheets <- sheets_get(MyURL)$sheets %>% 
       filter(str_detect(name, "[Gg]uess")) %>% 
       pull(name)
-
-# Including only people who answered this round.
-GuessSheets <- GuessSheets[str_detect(GuessSheets, str_c(Players, collapse = "|"))]
 
 Guesses.xl <- list()
 for(i in GuessSheets){
@@ -173,7 +170,8 @@ Guesses2 <- GA %>% filter(GA == "Player") %>% select(-GA) %>% rename("Player" = 
 Answers2 <- GA %>% filter(GA == "Answer") %>% select(-GA) %>% rename("Answer" = "Value")
 Guesses <- full_join(Guesses2, Answers2) %>% 
       mutate(Guesser = sub(" guesses", "", SheetName)) %>% 
-      select(-SheetName, -ID)
+      select(-SheetName, -ID) %>% 
+      filter(complete.cases(Player))
 
 # Scoring -----------------------------------------------------------------
 
@@ -181,12 +179,11 @@ Questions <- Questions %>%
       gather(key = "Question", value = "Answer", -Player) %>% 
       rename("CorrectAnswer" = "Answer")
 
-
 Scores <- Guesses %>% 
       # Fixing people's typos and misspellings. 
       left_join(Questions %>% 
-                      mutate(CorrectAnswer = ifelse(CorrectAnswer == "Elon Musk, clearly", 
-                                                    "Elon Musk", CorrectAnswer)) ) %>% 
+                      mutate(CorrectAnswer = ifelse(CorrectAnswer == "maple bars", 
+                                                    "maple bars", CorrectAnswer)) ) %>% 
       mutate(Answer = tolower(Answer),
              CorrectAnswer = tolower(CorrectAnswer),
              Correct = Answer == CorrectAnswer) %>% 
@@ -257,8 +254,8 @@ Q1 %>% group_by(Player) %>%
 Q2 <- Scores %>% filter(Question == "Q2", Correct == TRUE)
 
 Questions %>% filter(Question == "Q2") %>% select(Player, CorrectAnswer) %>% 
+      arrange(CorrectAnswer) %>% 
       rename("Actual answer" = "CorrectAnswer") %>% 
-      arrange(Player) %>% 
       kable()
 
 ```
