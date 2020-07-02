@@ -286,18 +286,11 @@ Q2 %>% group_by(Player) %>%
 
 ```{r}
 
-# NOTE! This question had only four possible answers!
 Q3 <- Scores %>% filter(Question == "Q3", Correct == TRUE)
 
-# Questions %>% filter(Question == "Q3") %>% select(Player, CorrectAnswer) %>% 
-#       rename("Actual answer" = "CorrectAnswer") %>% 
-#       arrange(Player) %>% 
-#       kable()
-
-Questions %>% filter(Question == "Q3") %>% select(Player, CorrectAnswer) %>% 
-      group_by(CorrectAnswer) %>% 
-      summarize(Players = str_c(sort(Player), collapse = ", ")) %>% 
-      ungroup() %>% rename("Fantasy creature" = CorrectAnswer) %>% 
+Questions %>% filter(Question == "Q3") %>% select(Player, CorrectAnswer) %>%
+      rename("Actual answer" = "CorrectAnswer") %>%
+      arrange(Player) %>%
       kable()
 
 
